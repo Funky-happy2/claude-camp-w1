@@ -1,35 +1,12 @@
-def safe_eval(expression):
-    """
-    Safely evaluate a mathematical expression.
-    Only allows basic math operations and numbers.
-    """
-    allowed_chars = set('0123456789+-*/(). ')
-    if not all(c in allowed_chars for c in expression):
-        raise ValueError("Invalid characters in expression")
-
-    try:
-        result = eval(expression, {"__builtins__": {}})
-        return result
-    except Exception as e:
-        raise ValueError(f"Error evaluating expression: {e}")
-
-def main():
-    print("Simple Calculator")
-    print("Enter mathematical expressions (e.g., 2 + 3 * 4)")
-    print("Type 'quit' to exit")
-
-    while True:
-        try:
-            equation = input("Enter equation: ").strip()
-            if equation.lower() == 'quit':
-                break
-            result = safe_eval(equation)
-            print(f"Result: {result}")
-        except ValueError as e:
-            print(f"Error: {e}")
-        except KeyboardInterrupt:
-            print("\nGoodbye!")
-            break
-
-if __name__ == "__main__":
-    main()
+height = float(input("Enter your height in cm: "))
+weight = float(input("Enter your weight in kg: "))
+bmi = weight / ((height / 100) ** 2)
+print(f"Your BMI is: {bmi:.2f}")
+if bmi < 18.5:
+    print("You are underweight.")
+elif 18.5 <= bmi < 25:
+    print("You have a normal weight.")
+elif 25 <= bmi < 30:
+    print("You are overweight.")
+else:
+    print("You are obese.")
