@@ -1,0 +1,1610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Frank's Python Workshop</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" />
+<style>
+  :root {
+    --bg-0: #07091a;
+    --bg-1: #0d122a;
+    --bg-2: #131a3d;
+    --panel: rgba(20, 26, 60, 0.55);
+    --border: rgba(120, 160, 255, 0.18);
+    --border-bright: rgba(150, 200, 255, 0.4);
+    --text: #e7ecff;
+    --muted: #8d96bd;
+    --accent: #7c5cff;        /* electric violet */
+    --accent-2: #38e8ff;       /* cyan accent */
+    --accent-3: #ffb454;       /* warm amber */
+    --green: #5cf0a0;
+    --red: #ff6b8a;
+    --yellow: #ffd166;
+    --shadow: 0 10px 40px rgba(0,0,0,.55);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter",
+                 "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: radial-gradient(1200px 600px at 10% -10%, #2a1c70 0%, transparent 60%),
+                radial-gradient(900px 500px at 100% 0%, #0a4670 0%, transparent 55%),
+                radial-gradient(700px 400px at 50% 110%, #5a2070 0%, transparent 60%),
+                linear-gradient(180deg, var(--bg-0), var(--bg-1));
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(11, 11, 20, 0.55);
+    backdrop-filter: blur(8px);
+  }
+  header .logo {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 0 22px rgba(124, 92, 255, 0.45);
+    font-size: 22px; cursor: pointer;
+  }
+  header .brand-name {
+    font-weight: 700;
+    background: linear-gradient(135deg, #c8b6ff 0%, #7eddff 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+  }
+  header h1 {
+    margin: 0; font-size: 18px; font-weight: 600; letter-spacing: 0.2px;
+  }
+  header .sub {
+    margin: 0; font-size: 12px; color: var(--muted);
+  }
+  header .spacer { flex: 1; }
+  header .pill {
+    font-size: 11px; padding: 6px 10px; border-radius: 999px;
+    border: 1px solid var(--border-bright); color: var(--muted);
+    background: rgba(140, 110, 220, 0.08);
+  }
+  #status { transition: color .2s; }
+  #status.saved { color: var(--green); }
+  #status.modified { color: var(--yellow); }
+
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 6px; padding: 10px 16px 0; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    background: rgba(11, 11, 20, 0.4);
+  }
+  .tab {
+    padding: 8px 14px; border-radius: 10px 10px 0 0;
+    font-size: 13px; cursor: pointer; user-select: none;
+    border: 1px solid transparent; border-bottom: none;
+    color: var(--muted); transition: all .15s;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .tab:hover { color: var(--text); background: rgba(255,255,255,.04); }
+  .tab.active {
+    color: var(--text);
+    background: var(--panel);
+    border-color: var(--border);
+    box-shadow: 0 -2px 0 var(--accent) inset;
+  }
+  .tab .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--yellow); opacity: 0; transition: opacity .15s;
+  }
+  .tab.dirty .dot { opacity: 1; }
+
+  /* Layout */
+  main {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 14px;
+    padding: 14px;
+    height: calc(100vh - 110px);
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+  }
+  .panel-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--muted); letter-spacing: .4px;
+    text-transform: uppercase;
+    background: rgba(0,0,0,.15);
+  }
+  .panel-head .label { display: flex; align-items: center; gap: 8px; }
+  .panel-head .label .swatch {
+    width: 8px; height: 8px; border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+  }
+  .panel-head .actions { margin-left: auto; display: flex; gap: 8px; }
+
+  button {
+    font-family: inherit; font-size: 12px; font-weight: 500;
+    padding: 7px 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border-bright);
+    color: var(--text); background: rgba(255,255,255,.04);
+    transition: all .12s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  button:hover { background: rgba(255,255,255,.09); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #1a0a2e; border-color: transparent; font-weight: 600;
+    box-shadow: 0 4px 14px rgba(183, 148, 255, 0.35);
+  }
+  button.primary:hover { filter: brightness(1.08); }
+  button.danger { color: var(--red); border-color: rgba(255,107,138,.4); }
+  button.danger:hover { background: rgba(255,107,138,.1); }
+
+  /* Editor */
+  #editor-wrap { flex: 1; min-height: 0; position: relative; }
+  .CodeMirror {
+    height: 100% !important;
+    background: rgba(11, 11, 20, 0.6) !important;
+    font-family: "JetBrains Mono", "Fira Code", "SF Mono", Menlo, monospace;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  .CodeMirror-gutters {
+    background: rgba(0,0,0,0.25) !important;
+    border-right: 1px solid var(--border) !important;
+  }
+
+  /* Home view */
+  #home-view {
+    display: none;
+    height: calc(100vh - 110px);
+    overflow-y: auto;
+    padding: 40px clamp(20px, 6vw, 80px) 60px;
+  }
+  #home-view.show { display: block; }
+  body.home-active main { display: none; }
+
+  .hero {
+    max-width: 1100px; margin: 0 auto 36px;
+  }
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 999px;
+    border: 1px solid var(--border-bright);
+    background: rgba(124, 92, 255, 0.12);
+    color: var(--accent);
+    font-size: 12px; font-weight: 600; letter-spacing: .8px;
+    text-transform: uppercase;
+  }
+  .hero-tag::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent-2); box-shadow: 0 0 10px var(--accent-2);
+  }
+  .hero h2 {
+    margin: 14px 0 8px;
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 700; letter-spacing: -0.5px; line-height: 1.1;
+  }
+  .hero h2 .name {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 60%, var(--accent-3) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+  }
+  .hero p.lead {
+    color: var(--muted); font-size: 16px; line-height: 1.6;
+    max-width: 720px; margin: 8px 0 0;
+  }
+  .hero .meta {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px;
+  }
+  .hero .meta .chip {
+    font-size: 12px; padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .section-title {
+    max-width: 1100px; margin: 32px auto 14px;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .section-title h3 {
+    margin: 0; font-size: 14px; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--muted); font-weight: 600;
+  }
+  .section-title .rule {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--border) 0%, transparent 100%);
+  }
+
+  .cards {
+    max-width: 1100px; margin: 0 auto;
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+  .card {
+    position: relative;
+    padding: 20px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(40, 50, 100, 0.35), rgba(20, 26, 60, 0.45));
+    cursor: pointer;
+    transition: all .18s ease;
+    overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(180px 120px at var(--mx, 50%) var(--my, 50%),
+                rgba(124, 92, 255, 0.15), transparent 60%);
+    opacity: 0; transition: opacity .2s;
+    pointer-events: none;
+  }
+  .card:hover {
+    border-color: var(--border-bright);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+  .card:hover::before { opacity: 1; }
+  .card .emoji {
+    font-size: 32px; line-height: 1;
+    display: inline-block; margin-bottom: 10px;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,.4));
+  }
+  .card h4 {
+    margin: 0 0 4px; font-size: 16px; font-weight: 600;
+  }
+  .card p {
+    margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5;
+  }
+  .card .pill-mini {
+    display: inline-flex; gap: 6px; align-items: center;
+    margin-top: 12px;
+    font-size: 11px; padding: 4px 10px; border-radius: 999px;
+    background: rgba(124, 92, 255, 0.12);
+    color: var(--accent);
+    border: 1px solid rgba(124, 92, 255, 0.25);
+  }
+  .card .pill-mini.dirty {
+    background: rgba(255, 209, 102, 0.12);
+    color: var(--yellow);
+    border-color: rgba(255, 209, 102, 0.3);
+  }
+
+  .how-grid {
+    max-width: 1100px; margin: 0 auto;
+    display: grid; gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+  .step {
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(20, 26, 60, 0.4);
+  }
+  .step .num {
+    display: inline-grid; place-items: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0b0b1a; font-weight: 700; font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .step h5 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+  .step p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .step kbd {
+    display: inline-block; padding: 1px 6px; border-radius: 4px;
+    background: rgba(255,255,255,.08); border: 1px solid var(--border);
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    color: var(--text);
+  }
+
+  .footer-note {
+    max-width: 1100px; margin: 28px auto 0;
+    color: var(--muted); font-size: 12px; text-align: center;
+  }
+
+  /* Output */
+  .output {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+    padding: 12px 14px;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #d8d6f0;
+    background: rgba(0,0,0,0.35);
+  }
+  .output .stdout { color: #d8d6f0; }
+  .output .stdin-echo { color: var(--accent-2); }
+  .output .stderr  { color: var(--red); }
+  .output .info    { color: var(--muted); font-style: italic; }
+  .output .ok      { color: var(--green); }
+
+  /* Inline terminal input (replaces window.prompt) */
+  .input-line {
+    display: flex; align-items: center; gap: 0;
+    padding: 2px 0;
+    margin-top: 2px;
+  }
+  .input-arrow {
+    color: var(--accent-2);
+    font-weight: 700;
+    user-select: none;
+    font-family: inherit;
+  }
+  .inline-input {
+    flex: 1;
+    background: transparent;
+    border: none; outline: none;
+    color: var(--accent-2);
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    padding: 0;
+    caret-color: var(--accent-2);
+    min-width: 0;
+  }
+  .inline-input::selection { background: rgba(56, 232, 255, 0.3); }
+
+  /* Loading overlay */
+  #loading {
+    position: fixed; inset: 0;
+    background: rgba(11, 11, 20, 0.85);
+    backdrop-filter: blur(6px);
+    display: grid; place-items: center;
+    z-index: 100;
+    transition: opacity .3s;
+  }
+  #loading.hidden { opacity: 0; pointer-events: none; }
+  #loading .box {
+    text-align: center;
+    padding: 24px 36px;
+    border-radius: 14px;
+    border: 1px solid var(--border-bright);
+    background: var(--panel);
+  }
+  .spinner {
+    width: 28px; height: 28px; margin: 0 auto 12px;
+    border: 3px solid rgba(183, 148, 255, 0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(140,130,220,.25);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(140,130,220,.45); }
+
+  /* Mobile */
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; height: auto; }
+    body { overflow: auto; }
+    #editor-wrap { height: 50vh; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============== Embedded original Python files ============== -->
+<script type="text/x-python" id="orig-tip">lang_choice = input("Select language / 选择语言:\n1. English\n2. 中文 (Chinese)\nChoose / 选择 (1 or 2): ").strip()
+lang = "zh" if lang_choice == "2" else "en"
+
+translations = {
+    "en": {
+        "welcome": "🍽️ Welcome to the Tip Calculator! 💰",
+        "enter_meal": "🧾 Enter the meal cost: ",
+        "enter_tip": "💸 Enter the tip percentage: ",
+        "tip_amount": "🤝 Tip amount: ${tip:.2f}",
+        "total_cost": "💳 Total cost: ${total:.2f}",
+        "cheap": "😊 This meal is relatively cheap. Enjoy your meal! 🎉",
+        "moderate": "💡 This meal is moderately expensive. Consider sharing the meal or ordering a smaller portion to save money.",
+        "expensive": "😬 This meal is quite expensive. Consider sharing the meal, ordering a smaller portion, or looking for cheaper options to save money.",
+        "again": "Do you want to calculate another tip? (yes/no): ",
+        "goodbye": "👋 Goodbye! Enjoy your meal! 🍴",
+        "ok_again": "🔄 Ok, let's calculate another tip!",
+        "invalid_again": "🤔 Invalid input. Let's calculate another tip!",
+    },
+    "zh": {
+        "welcome": "🍽️ 欢迎使用小费计算器！💰",
+        "enter_meal": "🧾 请输入餐费金额：",
+        "enter_tip": "💸 请输入小费百分比：",
+        "tip_amount": "🤝 小费金额：${tip:.2f}",
+        "total_cost": "💳 总费用：${total:.2f}",
+        "cheap": "😊 这顿饭比较便宜，享用美食吧！🎉",
+        "moderate": "💡 这顿饭价格适中，可以考虑与他人分享或点小份以节省费用。",
+        "expensive": "😬 这顿饭相当贵，可以考虑与他人分享、点小份或寻找更便宜的选择。",
+        "again": "您想再计算一次小费吗？(是/否)：",
+        "goodbye": "👋 再见！祝您用餐愉快！🍴",
+        "ok_again": "🔄 好的，让我们再计算一次！",
+        "invalid_again": "🤔 无效输入，让我们再计算一次！",
+    }
+}
+
+t = translations[lang]
+
+while True:
+    print(t["welcome"])
+
+    meal_cost = input(t["enter_meal"])
+    tip_percentage = input(t["enter_tip"])
+
+    meal_cost = "".join([char for char in meal_cost if char.isdigit() or char == "."])
+    meal_cost = eval(meal_cost.strip())
+
+    tip_percentage = "".join([char for char in tip_percentage if char.isdigit() or char == "."])
+    tip_percentage = eval(tip_percentage.strip())
+
+    tip_amount = meal_cost * (tip_percentage / 100)
+    total_cost = meal_cost + tip_amount
+    print(t["tip_amount"].format(tip=tip_amount))
+    print(t["total_cost"].format(total=total_cost))
+
+    if total_cost < 20:
+        print(t["cheap"])
+    elif 20 <= total_cost < 50:
+        print(t["moderate"])
+    else:
+        print(t["expensive"])
+
+    again = input(t["again"])
+    if again.lower() in ("no", "否"):
+        print(t["goodbye"])
+        break
+    elif again.lower() in ("yes", "是"):
+        print(t["ok_again"])
+    else:
+        print(t["invalid_again"])
+</script>
+
+<script type="text/x-python" id="orig-greet">import random
+
+lang_choice = input("Select language / 选择语言:\n1. English\n2. 中文 (Chinese)\nChoose / 选择 (1 or 2): ").strip()
+lang = "zh" if lang_choice == "2" else "en"
+
+translations = {
+    "en": {
+        "welcome": "🎉 Welcome to the Greeting Generator! 🎉",
+        "enter_name": "Enter your name: ",
+        "enter_age": "Enter your age: ",
+        "generating": "✨ Generating your greeting... ✨",
+        "greeting_type": "Greeting style: {style}",
+        "greetings": [
+            ("🎩 Formal",        "🎩 Good day, {name}. You are {age} years of age, which places your birth in {birth_year}. A pleasure to make your acquaintance."),
+            ("👋 Casual",        "👋 Hey {name}! Nice to meet you! You're {age} years old — that's pretty cool! 😄"),
+            ("🥳 Enthusiastic",  "🥳 HELLO {name}!!! I CAN'T BELIEVE YOU'RE {age} YEARS OLD! THAT'S AMAZING!!! 🎊🎉"),
+            ("🌟 Poetic",        "🌟 Ah, {name}! Like a star born in {birth_year}, you shine brighter at every age. Here's to {age} wonderful years! 🌸"),
+            ("🔮 Mysterious",    "🔮 The oracle speaks... {name}... born in {birth_year}... now {age} years walk this earth... fascinating. 🌙"),
+            ("☠️ Pirate",        "☠️ Ahoy, {name}! Ye be {age} years old, sailed since {birth_year}! A fine sea dog ye are! ⚓🦜"),
+        ],
+        "again": "Do you want to generate another greeting? (yes/no): ",
+        "goodbye": "👋 Goodbye! Have a great day! 😊",
+        "ok_again": "🔄 Ok, let's generate another greeting!",
+        "invalid_again": "🤔 Invalid input. Let's generate another greeting!",
+    },
+    "zh": {
+        "welcome": "🎉 欢迎使用问候语生成器！🎉",
+        "enter_name": "请输入您的姓名：",
+        "enter_age": "请输入您的年龄：",
+        "generating": "✨ 正在生成您的问候语... ✨",
+        "greeting_type": "问候语风格：{style}",
+        "greetings": [
+            ("🎩 正式",   "🎩 您好，{name}，您今年 {age} 岁，也就是说您出生于 {birth_year} 年。幸会。"),
+            ("👋 随意",   "👋 嗨，{name}！很高兴认识你！你今年 {age} 岁，真酷！😄"),
+            ("🥳 热情",   "🥳 你好呀，{name}！！！你居然已经 {age} 岁了！太厉害了！！！🎊🎉"),
+            ("🌟 诗意",   "🌟 啊，{name}！如同 {birth_year} 年诞生的星辰，你在 {age} 岁依然闪耀！🌸"),
+            ("🔮 神秘",   "🔮 神谕降临……{name}……诞生于 {birth_year} 年……如今已走过 {age} 个春秋……奇妙。🌙"),
+            ("☠️ 海盗",   "☠️ 哟吼，{name}！你已经 {age} 岁啦，自 {birth_year} 年扬帆至今！真是条好汉！⚓🦜"),
+        ],
+        "again": "您想再生成一个问候语吗？(是/否)：",
+        "goodbye": "👋 再见！祝您有美好的一天！😊",
+        "ok_again": "🔄 好的，让我们再生成一个！",
+        "invalid_again": "🤔 无效输入，让我们再生成一个！",
+    }
+}
+
+t = translations[lang]
+
+while True:
+    print(t["welcome"])
+
+    name = input(t["enter_name"]).strip()
+    age_raw = input(t["enter_age"])
+    age_raw = "".join([char for char in age_raw if char.isdigit() or char == "."])
+    age = float(age_raw.strip())
+    birth_year = int(2026 - age)
+
+    style, text = random.choice(t["greetings"])
+
+    print(t["generating"])
+    print(t["greeting_type"].format(style=style))
+    print(text.format(name=name, age=int(age), birth_year=birth_year))
+
+    again = input(t["again"])
+    if again.lower() in ("no", "否"):
+        print(t["goodbye"])
+        break
+    elif again.lower() in ("yes", "是"):
+        print(t["ok_again"])
+    else:
+        print(t["invalid_again"])
+</script>
+
+<script type="text/x-python" id="orig-temp">lang_choice = input("Select language / 选择语言:\n1. English\n2. 中文 (Chinese)\nChoose / 选择 (1 or 2): ").strip()
+lang = "zh" if lang_choice == "2" else "en"
+
+translations = {
+    "en": {
+        "welcome": "🌡️ Welcome to the Fahrenheit to Celsius converter! 🔄",
+        "choose_calc": "Choose your calculation: \n1. 🇺🇸 Fahrenheit to Celsius \n2. 🌍 Celsius to Fahrenheit\n                   \nChoose 1 or 2: ",
+        "enter_f": "🌡️ Enter the temperature in Fahrenheit: ",
+        "enter_c": "🌡️ Enter the temperature in Celsius: ",
+        "f_to_c_result": "🌡️ {f} Fahrenheit is {c:.2f} degrees Celsius to 2 decimal points.",
+        "c_to_f_result": "🌡️ {c} degrees Celsius is {f:.2f} Fahrenheit to 2 decimal points.",
+        "freezing": "🥶 It's freezing outside! Make sure to bundle up!",
+        "cold": "🧥 It's quite cold outside. Don't forget your coat!",
+        "chilly": "🍂 It's a bit chilly outside. You might want a light jacket.",
+        "warm": "☀️ The weather is nice and warm. Enjoy your day!",
+        "hot": "🔥 It's very hot outside! Stay hydrated and cool!",
+        "invalid": "❌ Invalid input. Please enter 1 or 2.",
+        "again": "Do you want to convert another temperature? (yes/no): ",
+        "goodbye": "👋 Goodbye! Stay comfortable! 😊",
+        "ok_again": "🔄 Ok, let's convert another temperature!",
+        "invalid_again": "🤔 Invalid input. Let's convert another temperature!",
+    },
+    "zh": {
+        "welcome": "🌡️ 欢迎使用温度转换器！🔄",
+        "choose_calc": "选择您的计算方式：\n1. 🇺🇸 华氏度转摄氏度\n2. 🌍 摄氏度转华氏度\n\n请选择 1 或 2：",
+        "enter_f": "🌡️ 请输入华氏度温度：",
+        "enter_c": "🌡️ 请输入摄氏度温度：",
+        "f_to_c_result": "🌡️ {f} 华氏度等于 {c:.2f} 摄氏度（保留两位小数）。",
+        "c_to_f_result": "🌡️ {c} 摄氏度等于 {f:.2f} 华氏度（保留两位小数）。",
+        "freezing": "🥶 外面非常寒冷！记得多穿衣服！",
+        "cold": "🧥 外面很冷，别忘了穿外套！",
+        "chilly": "🍂 外面有点凉，你可能需要一件薄外套。",
+        "warm": "☀️ 天气温暖宜人，祝您愉快！",
+        "hot": "🔥 外面非常热！请注意补水保凉！",
+        "invalid": "❌ 无效输入，请输入 1 或 2。",
+        "again": "您想再转换一次温度吗？(是/否)：",
+        "goodbye": "👋 再见！注意保暖！😊",
+        "ok_again": "🔄 好的，让我们再转换一次！",
+        "invalid_again": "🤔 无效输入，让我们再转换一次！",
+    }
+}
+
+t = translations[lang]
+
+while True:
+    print(t["welcome"])
+
+    f_or_c = input(t["choose_calc"])
+    f_or_c = "".join([char for char in f_or_c if char.isdigit()])
+    f_or_c = f_or_c.strip()
+    f_or_c = eval(f_or_c)
+
+    if f_or_c == 1:
+        f = input(t["enter_f"])
+        f = "".join([char for char in f if char.isdigit() or char == "."])
+        f = f.strip()
+        f = float(f)
+        c = (f - 32) * 5 / 9
+        print(t["f_to_c_result"].format(f=f, c=c))
+
+        if c < 0:
+            print(t["freezing"])
+        elif 0 <= c < 10:
+            print(t["cold"])
+        elif 10 <= c < 20:
+            print(t["chilly"])
+        elif 20 <= c < 30:
+            print(t["warm"])
+        else:
+            print(t["hot"])
+    elif f_or_c == 2:
+        c = input(t["enter_c"])
+        c = "".join([char for char in c if char.isdigit() or char == "."])
+        c = c.strip()
+        c = float(c)
+        f = (c * 9 / 5) + 32
+        print(t["c_to_f_result"].format(c=c, f=f))
+
+        if f < 32:
+            print(t["freezing"])
+        elif 32 <= f < 50:
+            print(t["cold"])
+        elif 50 <= f < 68:
+            print(t["chilly"])
+        elif 68 <= f < 86:
+            print(t["warm"])
+        else:
+            print(t["hot"])
+    else:
+        print(t["invalid"])
+        continue
+
+    again = input(t["again"])
+    if again.lower() in ("no", "否"):
+        print(t["goodbye"])
+        break
+    elif again.lower() in ("yes", "是"):
+        print(t["ok_again"])
+    else:
+        print(t["invalid_again"])
+</script>
+
+<script type="text/x-python" id="orig-pwd">import random
+import string
+
+lang_choice = input("🌐 Select language / 选择语言:\n1. 🇺🇸 English\n2. 🇨🇳 中文 (Chinese)\nChoose / 选择 (1 or 2): ").strip()
+lang = "zh" if lang_choice == "2" else "en"
+
+T = {
+    "en": {
+        "welcome": "🔐 Password Generator 🛡️",
+        "preset_prompt": (
+            "\n🏛️  Select a password regulation preset:\n"
+            " 1. 🇺🇸 NIST Modern (US Gov)        — 15+ chars, any printable, no forced complexity\n"
+            " 2. 💳 PCI-DSS (Finance)           — 12+ chars, upper+lower+digit+symbol required\n"
+            " 3. 🏥 HIPAA (Healthcare)          — 8+ chars, upper+lower+digit+symbol required\n"
+            " 4. 🏦 Chase Bank                  — 8-32 chars, limited symbols (!#$%+/=@~), no consecutive repeats\n"
+            " 5. 📦 Amazon                      — 6-16 chars, must meet 3 of 4 character types\n"
+            " 6. 💸 PayPal                      — 7-32 chars, no quotes, ampersand, or spaces\n"
+            " 7. 🇫🇷 Ameli.fr (French Health)    — digits only, no sequential runs (e.g. 123)\n"
+            " 8. 🛒 Alibaba                     — exactly 2 upper + 2 lower + 2 digits + 2 symbols (8 chars)\n"
+            " 9. 🇦🇺 Bendigo Bank (Australia)    — exactly 8 characters, any type\n"
+            "10. 🏛️  BBVA / Legacy Banking       — 1-6 chars, letters and numbers only\n"
+            "11. 🎮 Runescape / Gaming          — letters and numbers only, no special chars\n"
+            "12. ⚙️  Custom                      — choose your own character set\n"
+            "Choose (1-12): "
+        ),
+        "enter_length": "📏 Enter password length: ",
+        "enter_length_range": "📏 Enter password length ({min}-{max}): ",
+        "enter_length_min": "📏 Enter password length (min {min}): ",
+        "length_fixed": "📌 This preset always generates exactly {length} characters.",
+        "char_type_prompt": (
+            "🔣 Character set:\n"
+            "1. 🔢 Numbers only\n"
+            "2. 🔤 Letters and numbers\n"
+            "3. 🔡 Letters, numbers, and common symbols (!@#$%^&*)\n"
+            "4. ⌨️  All keyboard characters\n"
+            "Choose (1-4): "
+        ),
+        "generated": "\n🔑 Password: {password}",
+        "again": "\n🔄 Generate another? (yes/no): ",
+        "goodbye": "👋 Goodbye! Stay secure! 🔒",
+        "ok_again": "✅ Generating another password...",
+        "invalid_again": "❓ Invalid input. Generating another password...",
+    },
+    "zh": {
+        "welcome": "🔐 密码生成器 🛡️",
+        "preset_prompt": (
+            "\n🏛️  选择密码规范预设：\n"
+            " 1. 🇺🇸 NIST现代标准（美国政府）    — 15+字符，任意可打印字符，无强制复杂度\n"
+            " 2. 💳 PCI-DSS（金融）             — 12+字符，需含大小写字母、数字和符号\n"
+            " 3. 🏥 HIPAA（医疗）               — 8+字符，需含大小写字母、数字和符号\n"
+            " 4. 🏦 大通银行                    — 8-32字符，有限符号，不允许连续重复字符\n"
+            " 5. 📦 亚马逊                      — 6-16字符，需满足4类中的3类\n"
+            " 6. 💸 PayPal                      — 7-32字符，不允许引号、&符或空格\n"
+            " 7. 🇫🇷 Ameli.fr（法国医保）        — 仅数字，不允许连续序列（如123）\n"
+            " 8. 🛒 阿里巴巴                    — 恰好2大写+2小写+2数字+2符号（共8字符）\n"
+            " 9. 🇦🇺 本迪戈银行（澳大利亚）      — 恰好8个字符，任意类型\n"
+            "10. 🏛️  BBVA/传统银行               — 1-6字符，仅字母和数字\n"
+            "11. 🎮 Runescape/游戏平台          — 仅字母和数字，无特殊字符\n"
+            "12. ⚙️  自定义                      — 选择自己的字符集\n"
+            "请选择（1-12）："
+        ),
+        "enter_length": "📏 请输入密码长度：",
+        "enter_length_range": "📏 请输入密码长度（{min}-{max}）：",
+        "enter_length_min": "📏 请输入密码长度（最少{min}字符）：",
+        "length_fixed": "📌 此预设生成固定{length}个字符。",
+        "char_type_prompt": (
+            "🔣 字符集：\n"
+            "1. 🔢 仅数字\n"
+            "2. 🔤 字母和数字\n"
+            "3. 🔡 字母、数字和常见符号（!@#$%^&*）\n"
+            "4. ⌨️  所有键盘字符\n"
+            "请选择（1-4）："
+        ),
+        "generated": "\n🔑 密码：{password}",
+        "again": "\n🔄 是否再生成一个？（是/否）：",
+        "goodbye": "👋 再见！注意安全！🔒",
+        "ok_again": "✅ 正在生成另一个密码...",
+        "invalid_again": "❓ 无效输入，正在生成另一个密码...",
+    }
+}
+
+t = T[lang]
+
+UPPER          = string.ascii_uppercase
+LOWER          = string.ascii_lowercase
+DIGITS         = string.digits
+CHASE_SYMBOLS  = "!#$%+/=@~"
+COMMON_SYMBOLS = "!@#$%^&*()"
+PAYPAL_SYMBOLS = "".join(c for c in string.punctuation if c not in "\"'&")
+ALL_SYMBOLS    = string.punctuation
+ALL_PRINTABLE  = string.printable.strip()
+
+CUSTOM_CHAR_SETS = {
+    "1": DIGITS,
+    "2": string.ascii_letters + DIGITS,
+    "3": string.ascii_letters + DIGITS + COMMON_SYMBOLS,
+    "4": ALL_PRINTABLE,
+}
+
+PRESET_LIMITS = {
+    "1":  (15, None),
+    "2":  (12, None),
+    "3":  (8,  None),
+    "4":  (8,  32),
+    "5":  (6,  16),
+    "6":  (7,  32),
+    "7":  (6,  None),
+    "10": (1,  6),
+    "11": (8,  None),
+}
+
+
+def get_length(prompt, min_len=None, max_len=None):
+    raw = input(prompt)
+    digits = "".join(c for c in raw if c.isdigit())
+    length = int(digits) if digits else 0
+    if min_len:
+        length = max(min_len, length)
+    if max_len:
+        length = min(max_len, length)
+    return length if length > 0 else (min_len or 8)
+
+
+def with_required(required_pools, full_pool, length):
+    result = [random.choice(pool) for pool in required_pools]
+    result += random.choices(full_pool, k=length - len(result))
+    random.shuffle(result)
+    return result
+
+
+def fix_consecutive(chars):
+    result = list(chars)
+    pool = list(set(result))
+    for i in range(1, len(result)):
+        if result[i] == result[i - 1]:
+            alternatives = [c for c in pool if c != result[i - 1]]
+            if alternatives:
+                result[i] = random.choice(alternatives)
+    return result
+
+
+def fix_sequential_digits(chars):
+    result = list(chars)
+    for i in range(2, len(result)):
+        if all(c.isdigit() for c in result[i - 2:i + 1]):
+            d0, d1, d2 = int(result[i-2]), int(result[i-1]), int(result[i])
+            if d2 - d1 == d1 - d0:
+                safe = [str(d) for d in range(10) if abs(d - d1) > 1]
+                if safe:
+                    result[i] = random.choice(safe)
+    return result
+
+
+def generate(preset, length):
+    if preset == "1":
+        return "".join(random.choices(ALL_PRINTABLE, k=length))
+
+    if preset == "2":
+        full = UPPER + LOWER + DIGITS + ALL_SYMBOLS
+        return "".join(with_required([UPPER, LOWER, DIGITS, ALL_SYMBOLS], full, length))
+
+    if preset == "3":
+        full = UPPER + LOWER + DIGITS + ALL_SYMBOLS
+        return "".join(with_required([UPPER, LOWER, DIGITS, ALL_SYMBOLS], full, length))
+
+    if preset == "4":
+        full = UPPER + LOWER + DIGITS + CHASE_SYMBOLS
+        return "".join(fix_consecutive(with_required([], full, length)))
+
+    if preset == "5":
+        all_pools = [UPPER, LOWER, DIGITS, COMMON_SYMBOLS]
+        random.shuffle(all_pools)
+        full = UPPER + LOWER + DIGITS + COMMON_SYMBOLS
+        return "".join(with_required(all_pools[:3], full, length))
+
+    if preset == "6":
+        full = UPPER + LOWER + DIGITS + PAYPAL_SYMBOLS
+        return "".join(random.choices(full, k=length))
+
+    if preset == "7":
+        return "".join(fix_sequential_digits(list(random.choices(DIGITS, k=length))))
+
+    if preset == "8":
+        result = (
+            random.choices(UPPER, k=2) +
+            random.choices(LOWER, k=2) +
+            random.choices(DIGITS, k=2) +
+            random.choices(ALL_SYMBOLS, k=2)
+        )
+        random.shuffle(result)
+        return "".join(result)
+
+    if preset == "9":
+        return "".join(random.choices(ALL_PRINTABLE, k=8))
+
+    if preset == "10":
+        return "".join(random.choices(string.ascii_letters + DIGITS, k=length))
+
+    if preset == "11":
+        return "".join(random.choices(string.ascii_letters + DIGITS, k=length))
+
+    return ""
+
+
+while True:
+    print(t["welcome"])
+    preset = input(t["preset_prompt"]).strip()
+
+    if preset in ("8", "9"):
+        print(t["length_fixed"].format(length=8))
+        password = generate(preset, 8)
+
+    elif preset == "12":
+        char_choice = input(t["char_type_prompt"]).strip()
+        chars = CUSTOM_CHAR_SETS.get(char_choice, CUSTOM_CHAR_SETS["2"])
+        length = get_length(t["enter_length"])
+        password = "".join(random.choices(chars, k=length))
+
+    else:
+        min_len, max_len = PRESET_LIMITS.get(preset, (8, None))
+        if max_len:
+            prompt = t["enter_length_range"].format(min=min_len, max=max_len)
+        else:
+            prompt = t["enter_length_min"].format(min=min_len)
+        length = get_length(prompt, min_len, max_len)
+        password = generate(preset, length)
+
+    print(t["generated"].format(password=password))
+
+    again = input(t["again"])
+    if again.lower() in ("no", "否"):
+        print(t["goodbye"])
+        break
+    elif again.lower() in ("yes", "是"):
+        print(t["ok_again"])
+    else:
+        print(t["invalid_again"])
+</script>
+
+<script type="text/x-python" id="orig-bmi">lang_choice = input("Select language / 选择语言:\n1. English\n2. 中文 (Chinese)\nChoose / 选择 (1 or 2): ").strip()
+lang = "zh" if lang_choice == "2" else "en"
+
+T = {
+    "en": {
+        "welcome": "⚖️ Welcome to the BMI Calculator! 💪",
+        "enter_age": "🎂 Enter your age: ",
+        "enter_gender": "👤 Select your gender:\n1. ♂️  Male\n2. ♀️  Female\n3. 🔒 Prefer not to say\nChoose (1-3): ",
+        "enter_height": "📏 Enter your height in cm: ",
+        "enter_weight": "🏋️ Enter your weight in kg: ",
+        "bmi_result": "📊 Your BMI is: {bmi:.2f}",
+        "child_note": "📌 Note: Standard BMI ranges are designed for adults. For those under 18, consult a doctor for a proper assessment.",
+        "again": "🔄 Do you want to calculate again? (yes/no): ",
+        "goodbye": "👋 Goodbye! Stay healthy! 💚",
+        "ok_again": "🔄 Ok, let's calculate again!",
+        "invalid_again": "🤔 Invalid input. Let's calculate again!",
+        "advice": {
+            "underweight": {
+                "child": {
+                    "male":   "🥗 You are underweight. Growing boys need plenty of protein, healthy fats, and calories to support muscle and bone development. Talk to a doctor or nutritionist.",
+                    "female": "🥗 You are underweight. Growing girls need adequate nutrition for bone density and hormonal development. Talk to a doctor or nutritionist.",
+                    "other":  "🥗 You are underweight. Growing bodies need nutrient-dense foods to support healthy development. Talk to a doctor or nutritionist.",
+                },
+                "adult": {
+                    "male":   "🥗 You are underweight. Consider increasing your intake of protein-rich foods to support muscle mass. If weight loss was unintentional, consult a doctor.",
+                    "female": "🥗 You are underweight. This can affect hormonal health and bone density. Focus on nutrient-dense foods and consult a doctor if concerned.",
+                    "other":  "🥗 You are underweight. Consider eating more nutrient-dense foods and consult a doctor if the weight loss was unintentional.",
+                },
+                "senior": {
+                    "male":   "🥗 You are underweight, which is a significant concern at your age. Prioritise protein to preserve muscle mass and consult your doctor.",
+                    "female": "🥗 You are underweight, which increases fracture and osteoporosis risk. Ensure adequate calcium and vitamin D, and consult your doctor.",
+                    "other":  "🥗 You are underweight, which is a significant concern for older adults. Focus on nutrient-rich foods and consult your doctor.",
+                },
+            },
+            "normal": {
+                "child": {
+                    "male":   "✅ You have a healthy weight for your age. Keep up the active lifestyle and balanced diet! 🌟",
+                    "female": "✅ You have a healthy weight for your age. Keep up the active lifestyle and balanced diet! 🌟",
+                    "other":  "✅ You have a healthy weight for your age. Keep up the active lifestyle and balanced diet! 🌟",
+                },
+                "adult": {
+                    "male":   "✅ You have a healthy weight. Consider adding strength training to maintain muscle mass and keep up the balanced diet! 🌟",
+                    "female": "✅ You have a healthy weight. Make sure you're getting enough iron and calcium in your diet. Keep it up! 🌟",
+                    "other":  "✅ You have a healthy weight. Maintain your balanced diet and regular exercise to stay this way! 🌟",
+                },
+                "senior": {
+                    "male":   "✅ You have a healthy weight. Focus on maintaining muscle strength through light resistance exercise and adequate protein intake. 🌟",
+                    "female": "✅ You have a healthy weight. Prioritise calcium, vitamin D, and light exercise to protect bone and muscle health. 🌟",
+                    "other":  "✅ You have a healthy weight. Stay active and eat a balanced diet to maintain it as you age. 🌟",
+                },
+            },
+            "overweight": {
+                "child": {
+                    "male":   "⚠️ You are overweight. Focus on fun physical activities and balanced meals rather than strict dieting. Talk to a doctor for personalised advice.",
+                    "female": "⚠️ You are overweight. Focus on fun physical activities and balanced meals rather than strict dieting. Talk to a doctor for personalised advice.",
+                    "other":  "⚠️ You are overweight. Focus on healthy habits and talk to a doctor for personalised advice.",
+                },
+                "adult": {
+                    "male":   "⚠️ You are overweight. This raises your risk of cardiovascular disease and high blood pressure. Consider cardio exercise and cutting back on processed foods.",
+                    "female": "⚠️ You are overweight. This can affect hormonal balance and increase health risks. Consider a balanced diet and regular exercise.",
+                    "other":  "⚠️ You are overweight. Consider increasing physical activity and improving your diet. Consult a doctor if needed.",
+                },
+                "senior": {
+                    "male":   "⚠️ You are overweight. A slightly higher BMI can sometimes be protective at your age — consult your doctor before making major lifestyle changes.",
+                    "female": "⚠️ You are overweight. A slightly higher BMI can sometimes be protective at your age — consult your doctor before making major lifestyle changes.",
+                    "other":  "⚠️ You are overweight. Consult your doctor before making changes — a slightly higher BMI may be acceptable at your age.",
+                },
+            },
+            "obese": {
+                "child": {
+                    "male":   "🚨 You are obese. Please consult a doctor or paediatrician. Focus on family-wide healthy eating habits and active play rather than dieting alone.",
+                    "female": "🚨 You are obese. Please consult a doctor or paediatrician. Focus on family-wide healthy eating habits and active play rather than dieting alone.",
+                    "other":  "🚨 You are obese. Please consult a doctor or paediatrician for a personalised and age-appropriate plan.",
+                },
+                "adult": {
+                    "male":   "🚨 You are obese. This significantly raises your risk of heart disease, diabetes, and hypertension. Please speak with a doctor about a safe plan.",
+                    "female": "🚨 You are obese. This increases risk of diabetes, joint problems, and hormonal imbalances. Please speak with a doctor about a personalised plan.",
+                    "other":  "🚨 You are obese. This carries significant health risks. Please consult a doctor about a safe and sustainable weight management plan.",
+                },
+                "senior": {
+                    "male":   "🚨 You are obese. Please consult your doctor for a safe plan that focuses on mobility, joint health, and muscle preservation.",
+                    "female": "🚨 You are obese. Please consult your doctor for a safe plan that considers joint health, bone density, and sustainable changes.",
+                    "other":  "🚨 You are obese. Please consult your doctor for a personalised plan that is safe for your age and health needs.",
+                },
+            },
+        },
+    },
+    "zh": {
+        "welcome": "⚖️ 欢迎使用 BMI 计算器！💪",
+        "enter_age": "🎂 请输入您的年龄：",
+        "enter_gender": "👤 请选择您的性别：\n1. ♂️  男性\n2. ♀️  女性\n3. 🔒 不愿透露\n请选择（1-3）：",
+        "enter_height": "📏 请输入您的身高（厘米）：",
+        "enter_weight": "🏋️ 请输入您的体重（千克）：",
+        "bmi_result": "📊 您的 BMI 是：{bmi:.2f}",
+        "child_note": "📌 注意：标准BMI范围适用于成年人。18岁以下人群请咨询医生进行专业评估。",
+        "again": "🔄 您想再计算一次吗？(是/否)：",
+        "goodbye": "👋 再见！保持健康！💚",
+        "ok_again": "🔄 好的，让我们再计算一次！",
+        "invalid_again": "🤔 无效输入，让我们再计算一次！",
+        "advice": {
+            "underweight": {
+                "child": {
+                    "male":   "🥗 您的体重偏低。男孩成长期需要充足的蛋白质、健康脂肪和热量以支持肌肉和骨骼发育。请咨询医生或营养师。",
+                    "female": "🥗 您的体重偏低。女孩成长期需要充足营养以支持骨密度和激素发育。请咨询医生或营养师。",
+                    "other":  "🥗 您的体重偏低。成长中的身体需要营养丰富的食物以支持健康发育。请咨询医生或营养师。",
+                },
+                "adult": {
+                    "male":   "🥗 您的体重偏低。建议增加富含蛋白质的食物摄入以维持肌肉量。若体重非自愿下降，请咨询医生。",
+                    "female": "🥗 您的体重偏低，可能影响激素健康和骨密度。请注重营养均衡，如有需要请咨询医生。",
+                    "other":  "🥗 您的体重偏低。建议增加营养丰富食物的摄入，如体重非自愿下降请咨询医生。",
+                },
+                "senior": {
+                    "male":   "🥗 您的体重偏低，这对您这个年龄段是重要问题。请优先摄入蛋白质以保持肌肉量，并咨询医生。",
+                    "female": "🥗 您的体重偏低，增加了骨折和骨质疏松的风险。请确保摄入足够的钙和维生素D，并咨询医生。",
+                    "other":  "🥗 您的体重偏低，这对老年人是重要问题。请注重营养饮食并咨询医生。",
+                },
+            },
+            "normal": {
+                "child": {
+                    "male":   "✅ 您的体重在健康范围内。继续保持积极的生活方式和均衡饮食！🌟",
+                    "female": "✅ 您的体重在健康范围内。继续保持积极的生活方式和均衡饮食！🌟",
+                    "other":  "✅ 您的体重在健康范围内。继续保持积极的生活方式和均衡饮食！🌟",
+                },
+                "adult": {
+                    "male":   "✅ 您的体重正常。建议进行力量训练以维持肌肉量，继续保持均衡饮食！🌟",
+                    "female": "✅ 您的体重正常。请确保饮食中含有足够的铁和钙。继续保持！🌟",
+                    "other":  "✅ 您的体重正常。坚持均衡饮食和规律运动！🌟",
+                },
+                "senior": {
+                    "male":   "✅ 您的体重正常。建议通过轻度抗阻训练和充足蛋白质来维持肌肉力量。🌟",
+                    "female": "✅ 您的体重正常。请注重补充钙质和维生素D，并坚持适度运动以保护骨骼和肌肉健康。🌟",
+                    "other":  "✅ 您的体重正常。保持积极的生活方式和均衡饮食以维持健康！🌟",
+                },
+            },
+            "overweight": {
+                "child": {
+                    "male":   "⚠️ 您的体重偏高。重点应放在有趣的体育活动和均衡饮食上，而非严格节食。请咨询医生获取个性化建议。",
+                    "female": "⚠️ 您的体重偏高。重点应放在有趣的体育活动和均衡饮食上，而非严格节食。请咨询医生获取个性化建议。",
+                    "other":  "⚠️ 您的体重偏高。请注重培养健康习惯，并咨询医生获取个性化建议。",
+                },
+                "adult": {
+                    "male":   "⚠️ 您的体重偏高，增加了心血管疾病和高血压的风险。建议增加有氧运动并减少加工食品摄入。",
+                    "female": "⚠️ 您的体重偏高，可能影响激素平衡并增加健康风险。建议均衡饮食和规律运动。",
+                    "other":  "⚠️ 您的体重偏高。建议增加运动量并改善饮食结构，如有需要请咨询医生。",
+                },
+                "senior": {
+                    "male":   "⚠️ 您的体重偏高。对于您这个年龄段，稍高的BMI有时具有保护作用，进行重大生活方式改变前请先咨询医生。",
+                    "female": "⚠️ 您的体重偏高。对于您这个年龄段，稍高的BMI有时具有保护作用，进行重大生活方式改变前请先咨询医生。",
+                    "other":  "⚠️ 您的体重偏高。进行改变前请先咨询医生，稍高的BMI在您这个年龄段可能是可以接受的。",
+                },
+            },
+            "obese": {
+                "child": {
+                    "male":   "🚨 您的BMI显示肥胖。请咨询医生或儿科医生。应以全家共同建立健康饮食习惯和积极运动为主，而非单纯节食。",
+                    "female": "🚨 您的BMI显示肥胖。请咨询医生或儿科医生。应以全家共同建立健康饮食习惯和积极运动为主，而非单纯节食。",
+                    "other":  "🚨 您的BMI显示肥胖。请咨询医生或儿科医生制定个性化的适龄方案。",
+                },
+                "adult": {
+                    "male":   "🚨 您属于肥胖，显著增加了心脏病、糖尿病和高血压的风险。请尽快咨询医生制定安全的减重方案。",
+                    "female": "🚨 您属于肥胖，增加了糖尿病、关节问题和激素失调的风险。请咨询医生制定个性化方案。",
+                    "other":  "🚨 您属于肥胖，存在重大健康风险。请咨询医生制定安全、可持续的体重管理方案。",
+                },
+                "senior": {
+                    "male":   "🚨 您属于肥胖。请咨询医生制定安全方案，重点关注行动能力、关节健康和肌肉保持。",
+                    "female": "🚨 您属于肥胖。请咨询医生制定安全方案，综合考虑关节健康、骨密度和可持续改变。",
+                    "other":  "🚨 您属于肥胖。请咨询医生制定适合您年龄和健康需求的个性化方案。",
+                },
+            },
+        },
+    },
+}
+
+t = T[lang]
+
+
+def parse_num(s, allow_decimal=False):
+    return "".join(c for c in s if c.isdigit() or (allow_decimal and c == "."))
+
+
+def get_age_group(age):
+    if age < 18:
+        return "child"
+    elif age < 65:
+        return "adult"
+    return "senior"
+
+
+def get_gender(choice):
+    if choice == "1":
+        return "male"
+    elif choice == "2":
+        return "female"
+    return "other"
+
+
+while True:
+    print(t["welcome"])
+
+    age = int(parse_num(input(t["enter_age"])) or "0")
+    gender = get_gender(input(t["enter_gender"]).strip())
+    age_group = get_age_group(age)
+
+    height = float(parse_num(input(t["enter_height"]), allow_decimal=True) or "0")
+    weight = float(parse_num(input(t["enter_weight"]), allow_decimal=True) or "0")
+
+    bmi = weight / ((height / 100) ** 2)
+    print(t["bmi_result"].format(bmi=bmi))
+
+    if age_group == "child":
+        print(t["child_note"])
+
+    if bmi < 18.5:
+        category = "underweight"
+    elif bmi < 25:
+        category = "normal"
+    elif bmi < 30:
+        category = "overweight"
+    else:
+        category = "obese"
+
+    print(t["advice"][category][age_group][gender])
+
+    again = input(t["again"])
+    if again.lower() in ("no", "否"):
+        print(t["goodbye"])
+        break
+    elif again.lower() in ("yes", "是"):
+        print(t["ok_again"])
+    else:
+        print(t["invalid_again"])
+</script>
+
+<header>
+  <div class="logo" id="logo-home" title="Back to home">🐍</div>
+  <div>
+    <h1><span class="brand-name">Frank's Python Workshop</span></h1>
+    <p class="sub">Claude Camp · Week 1 · by Frank Zhang</p>
+  </div>
+  <div class="spacer"></div>
+  <span id="status" class="pill saved">● Saved</span>
+  <span id="pyodide-status" class="pill">⏳ Loading Python…</span>
+</header>
+
+<nav class="tabs" id="tabs"></nav>
+
+<!-- ============== Home / Intro view ============== -->
+<section id="home-view">
+  <div class="hero">
+    <span class="hero-tag">Claude Camp · Week 1</span>
+    <h2>Welcome back, <span class="name">Frank</span> 👋</h2>
+    <p class="lead">
+      This is your live workshop for the five Python projects you built this week —
+      open any one to read the code, tweak it in a real editor, and run it right here in
+      the browser. No setup, nothing to install. Your edits save automatically and survive
+      a refresh, so you can pick up exactly where you left off.
+    </p>
+    <div class="meta">
+      <span class="chip">5 programs</span>
+      <span class="chip">Bilingual EN / 中文</span>
+      <span class="chip">Auto-saved in your browser</span>
+      <span class="chip">Powered by Pyodide</span>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h3>Pick a project to open</h3><span class="rule"></span>
+  </div>
+  <div class="cards" id="program-cards"></div>
+
+  <div class="section-title">
+    <h3>How to use the workshop</h3><span class="rule"></span>
+  </div>
+  <div class="how-grid">
+    <div class="step">
+      <div class="num">1</div>
+      <h5>Open a project</h5>
+      <p>Click a card above, or use the tabs at the top to jump between programs.</p>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <h5>Edit the code</h5>
+      <p>The left side is a real Python editor with syntax highlighting. Type to change anything — your edits auto-save as you go.</p>
+    </div>
+    <div class="step">
+      <div class="num">3</div>
+      <h5>Run it</h5>
+      <p>Hit <kbd>▶ Run</kbd> (or <kbd>⌘/Ctrl + Enter</kbd>). When the program asks a question, type your answer right at the bottom of the terminal.</p>
+    </div>
+    <div class="step">
+      <div class="num">4</div>
+      <h5>Refresh anytime</h5>
+      <p>Reload the page and your edits, the active project, everything comes back. Click <kbd>↺ Reset</kbd> on a project to restore its original code.</p>
+    </div>
+  </div>
+
+  <p class="footer-note">
+    Local-first · your code lives only in this browser · made for Frank's Claude Camp Week 1
+  </p>
+</section>
+
+<!-- ============== Workshop view (editor + terminal) ============== -->
+<main id="workshop-view">
+  <section class="panel">
+    <div class="panel-head">
+      <span class="label" style="color:var(--accent)"><span class="swatch" style="background:var(--accent)"></span> Editor</span>
+      <span id="filename" style="color:var(--muted); text-transform:none; letter-spacing:0; margin-left:6px; font-size:12px;"></span>
+      <div class="actions">
+        <button id="reset-btn" class="danger" title="Restore the original code from your .py file">↺ Reset</button>
+        <button id="run-btn" class="primary">▶ Run</button>
+      </div>
+    </div>
+    <div id="editor-wrap">
+      <textarea id="editor"></textarea>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="label" style="color:var(--green)"><span class="swatch" style="background:var(--green)"></span> Terminal</span>
+      <span style="color:var(--muted); text-transform:none; letter-spacing:0; font-size:11px;">— type your answers at the bottom when the program asks</span>
+      <div class="actions">
+        <button id="clear-btn">Clear</button>
+      </div>
+    </div>
+    <div id="output" class="output"><span class="info">Output appears here. Click ▶ Run (or ⌘/Ctrl+Enter) to execute the code.</span></div>
+  </section>
+</main>
+
+<div id="loading">
+  <div class="box">
+    <div class="spinner"></div>
+    <div>Loading Python (Pyodide)…</div>
+    <div style="color:var(--muted); font-size:12px; margin-top:6px;">First time: ~5MB download. Subsequent loads are cached.</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+
+<script>
+// ---- File registry ---------------------------------------------------------
+const HOME_ID = '__home__';
+const FILES = [
+  { id: 'tip',   name: 'Tip Calculator.py',     icon: '🍽️', origId: 'orig-tip',
+    blurb: 'Bilingual tip splitter with friendly cost-of-meal advice.' },
+  { id: 'greet', name: 'Greeting Generator.py', icon: '🎉', origId: 'orig-greet',
+    blurb: 'Six greeting styles — formal, casual, pirate and beyond.' },
+  { id: 'temp',  name: 'F to C.py',             icon: '🌡️', origId: 'orig-temp',
+    blurb: 'Two-way temperature converter with weather suggestions.' },
+  { id: 'pwd',   name: 'Password Generator.py', icon: '🔐', origId: 'orig-pwd',
+    blurb: 'Twelve real-world password rule presets, NIST to Alibaba.' },
+  { id: 'bmi',   name: 'BMI Calculator.py',     icon: '⚖️', origId: 'orig-bmi',
+    blurb: 'BMI plus age- and gender-aware health advice.' },
+];
+
+const ORIGINAL = {};
+FILES.forEach(f => {
+  ORIGINAL[f.id] = document.getElementById(f.origId).textContent.replace(/^\n/, '');
+});
+
+const LS_PREFIX = 'frank-py-workshop:';
+const LS_ACTIVE = 'frank-py-workshop:active';
+
+function load(id)        { return localStorage.getItem(LS_PREFIX + id); }
+function save(id, value) { localStorage.setItem(LS_PREFIX + id, value); }
+
+// ---- Element handles ------------------------------------------------------
+const tabsEl     = document.getElementById('tabs');
+const filenameEl = document.getElementById('filename');
+const outputEl   = document.getElementById('output');
+const statusEl   = document.getElementById('status');
+const pyStatusEl = document.getElementById('pyodide-status');
+const homeEl     = document.getElementById('home-view');
+const cardsEl    = document.getElementById('program-cards');
+
+// ---- Tabs (Home + each file) ----------------------------------------------
+let activeId = localStorage.getItem(LS_ACTIVE) || HOME_ID;
+const tabEls = {};
+
+function makeTab(id, label, icon, opts={}) {
+  const t = document.createElement('div');
+  t.className = 'tab' + (opts.home ? ' tab-home' : '');
+  t.dataset.id = id;
+  t.innerHTML = `<span>${icon}</span><span>${label}</span><span class="dot"></span>`;
+  t.onclick = () => switchTo(id);
+  tabsEl.appendChild(t);
+  tabEls[id] = t;
+}
+makeTab(HOME_ID, 'Home', '🏠', { home: true });
+FILES.forEach(f => makeTab(f.id, f.name, f.icon));
+
+// ---- Program cards on the home page ---------------------------------------
+FILES.forEach(f => {
+  const c = document.createElement('div');
+  c.className = 'card';
+  c.dataset.id = f.id;
+  c.innerHTML = `
+    <span class="emoji">${f.icon}</span>
+    <h4>${f.name}</h4>
+    <p>${f.blurb}</p>
+    <span class="pill-mini">Open project →</span>
+  `;
+  c.onclick = () => switchTo(f.id);
+  c.onmousemove = (e) => {
+    const r = c.getBoundingClientRect();
+    c.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  };
+  cardsEl.appendChild(c);
+});
+
+document.getElementById('logo-home').onclick = () => switchTo(HOME_ID);
+
+// ---- CodeMirror ------------------------------------------------------------
+const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+  mode: 'python',
+  theme: 'dracula',
+  lineNumbers: true,
+  indentUnit: 4,
+  tabSize: 4,
+  indentWithTabs: false,
+  lineWrapping: false,
+  matchBrackets: true,
+  extraKeys: {
+    'Tab': cm => cm.replaceSelection('    ', 'end'),
+    'Cmd-Enter':  () => runCode(),
+    'Ctrl-Enter': () => runCode(),
+  },
+});
+
+let saveTimer = null;
+let initialized = false;
+let programmatic = false;
+editor.on('change', () => {
+  if (!initialized || programmatic) return;
+  if (activeId === HOME_ID) return;
+  setStatus('modified');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    save(activeId, editor.getValue());
+    refreshDirtyMarkers();
+    setStatus('saved');
+  }, 250);
+});
+
+function setStatus(state) {
+  statusEl.classList.remove('saved', 'modified');
+  statusEl.classList.add(state);
+  statusEl.textContent = state === 'saved' ? '● Saved' : '● Modifying…';
+}
+
+function isDirty(id) {
+  const cur = (id === activeId && activeId !== HOME_ID) ? editor.getValue()
+                                                         : (load(id) ?? ORIGINAL[id]);
+  return cur !== ORIGINAL[id];
+}
+function refreshDirtyMarkers() {
+  FILES.forEach(f => {
+    tabEls[f.id].classList.toggle('dirty', isDirty(f.id));
+    const card = cardsEl.querySelector(`[data-id="${f.id}"] .pill-mini`);
+    if (card) {
+      card.classList.toggle('dirty', isDirty(f.id));
+      card.textContent = isDirty(f.id) ? 'Edited · open →' : 'Open project →';
+    }
+  });
+}
+
+function switchTo(id) {
+  // Persist the current editor only after it has been hydrated once
+  if (initialized && activeId !== HOME_ID) {
+    save(activeId, editor.getValue());
+  }
+  activeId = id;
+  localStorage.setItem(LS_ACTIVE, id);
+  Object.values(tabEls).forEach(el => el.classList.remove('active'));
+  if (tabEls[id]) tabEls[id].classList.add('active');
+
+  if (id === HOME_ID) {
+    document.body.classList.add('home-active');
+    homeEl.classList.add('show');
+    refreshDirtyMarkers();
+    return;
+  }
+  document.body.classList.remove('home-active');
+  homeEl.classList.remove('show');
+
+  const file = FILES.find(f => f.id === id);
+  filenameEl.textContent = file.name;
+  const stored = load(id);
+  const codeToLoad = (stored && stored.length > 0) ? stored : ORIGINAL[id];
+  programmatic = true;
+  editor.setValue(codeToLoad);
+  editor.clearHistory();
+  programmatic = false;
+  // Refresh CodeMirror layout in case it was hidden during init
+  setTimeout(() => editor.refresh(), 0);
+  refreshDirtyMarkers();
+  setStatus('saved');
+  initialized = true;
+}
+
+document.getElementById('reset-btn').onclick = () => {
+  if (activeId === HOME_ID) return;
+  if (!confirm('Reset to the original code? Your edits to this file will be lost.')) return;
+  programmatic = true;
+  editor.setValue(ORIGINAL[activeId]);
+  programmatic = false;
+  save(activeId, ORIGINAL[activeId]);
+  refreshDirtyMarkers();
+};
+
+document.getElementById('clear-btn').onclick = () => {
+  outputEl.innerHTML = '<span class="info">Terminal cleared.</span>';
+};
+
+// Initial render
+switchTo(activeId);
+
+// ---- Pyodide setup ---------------------------------------------------------
+let pyodide = null;
+let running = false;
+let cancelInput = null;
+
+function appendOutput(text, cls = 'stdout') {
+  const span = document.createElement('span');
+  span.className = cls;
+  span.textContent = text;
+  outputEl.appendChild(span);
+  outputEl.scrollTop = outputEl.scrollHeight;
+}
+
+async function initPyodide() {
+  pyodide = await loadPyodide({
+    indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/'
+  });
+  pyodide.setStdout({ batched: t => appendOutput(t + '\n', 'stdout') });
+  pyodide.setStderr({ batched: t => appendOutput(t + '\n', 'stderr') });
+  pyStatusEl.textContent = '✓ Python ready';
+  pyStatusEl.style.color = 'var(--green)';
+  document.getElementById('loading').classList.add('hidden');
+}
+
+// ---- Bridge: Python ↔ inline terminal -------------------------------------
+window.runtimeWrite = (text, cls) => appendOutput(text, cls || 'stdout');
+
+// Inline-input prompt: shows an editable line at the bottom of the terminal
+// and resolves the returned Promise when the user hits Enter. Python awaits it
+// via Pyodide's JsProxy → asyncio bridge, so input() blocks naturally without
+// blocking the page.
+window.runtimeAskInline = function(promptText) {
+  return new Promise((resolve) => {
+    const line = document.createElement('div');
+    line.className = 'input-line';
+
+    const arrow = document.createElement('span');
+    arrow.className = 'input-arrow';
+    arrow.textContent = '› ';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'inline-input';
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.setAttribute('autocapitalize', 'off');
+
+    line.appendChild(arrow);
+    line.appendChild(input);
+    outputEl.appendChild(line);
+    outputEl.scrollTop = outputEl.scrollHeight;
+    setTimeout(() => input.focus(), 0);
+
+    const cleanup = () => { line.remove(); cancelInput = null; };
+    cancelInput = () => { cleanup(); resolve(null); };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = input.value;
+        cleanup();
+        resolve(val);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cleanup();
+        resolve(null);
+      }
+    });
+  });
+};
+
+// ---- The Python wrapper that makes input() async --------------------------
+// User code uses sync `input()` calls. We AST-transform them to `await input()`
+// and propagate async-ness to any function that (transitively) calls input.
+// Then the whole script runs inside an `async def __user_main__()` so the
+// awaits are legal, and `input` is rebound to our async _input.
+const PY_WRAPPER = `
+import ast as _ast, textwrap as _tw, sys as _sys
+from js import runtimeWrite as _write, runtimeAskInline as _ask
+
+async def _input(prompt=""):
+    if prompt:
+        _write(prompt, "stdout")
+    val = await _ask(prompt)
+    if val is None:
+        raise EOFError("Input cancelled.")
+    s = str(val)
+    _write(s + "\\n", "stdin-echo")
+    return s
+
+class _Analyzer(_ast.NodeVisitor):
+    def __init__(self):
+        self.calls = {}
+        self.uses_input = set()
+        self.cur = None
+    def visit_FunctionDef(self, n):
+        old = self.cur; self.cur = n.name
+        self.calls.setdefault(n.name, set())
+        self.generic_visit(n); self.cur = old
+    visit_AsyncFunctionDef = visit_FunctionDef
+    def visit_Call(self, n):
+        self.generic_visit(n)
+        if isinstance(n.func, _ast.Name):
+            name = n.func.id
+            if name == "input":
+                if self.cur is not None:
+                    self.uses_input.add(self.cur)
+            elif self.cur is not None:
+                self.calls[self.cur].add(name)
+
+class _Trans(_ast.NodeTransformer):
+    def __init__(self, A): self.A = A
+    def visit_FunctionDef(self, n):
+        self.generic_visit(n)
+        if n.name in self.A:
+            new = _ast.AsyncFunctionDef(
+                name=n.name, args=n.args, body=n.body,
+                decorator_list=n.decorator_list, returns=n.returns,
+            )
+            return _ast.copy_location(new, n)
+        return n
+    def visit_Call(self, n):
+        self.generic_visit(n)
+        if isinstance(n.func, _ast.Name):
+            if n.func.id == "input" or n.func.id in self.A:
+                return _ast.copy_location(_ast.Await(value=n), n)
+        return n
+
+def _prepare(src):
+    tree = _ast.parse(src)
+    a = _Analyzer(); a.visit(tree)
+    A = set(a.uses_input)
+    changed = True
+    while changed:
+        changed = False
+        for f, called in a.calls.items():
+            if f not in A and any(c in A for c in called):
+                A.add(f); changed = True
+    _Trans(A).visit(tree)
+    _ast.fix_missing_locations(tree)
+    return _ast.unparse(tree)
+`;
+
+async function runCode() {
+  if (running) return;
+  if (activeId === HOME_ID) {
+    appendOutput('Open a project first (click a card or a tab).\n', 'info');
+    return;
+  }
+  if (!pyodide) {
+    appendOutput('Python is still loading… one moment.\n', 'info');
+    return;
+  }
+  running = true;
+  const runBtn = document.getElementById('run-btn');
+  runBtn.disabled = true; runBtn.textContent = '⏳ Running…';
+  outputEl.innerHTML = '';
+  appendOutput(`▶ Running ${FILES.find(f=>f.id===activeId).name}\n`, 'info');
+
+  save(activeId, editor.getValue());
+
+  const userCode = editor.getValue();
+  pyodide.globals.set('__user_code__', userCode);
+
+  const driver = `
+_user_src = _prepare(__user_code__)
+_wrapped = "async def __user_main__():\\n    input = _input\\n" + _tw.indent(_user_src, "    ")
+exec(_wrapped, globals())
+await __user_main__()
+`;
+
+  try {
+    await new Promise(r => setTimeout(r, 0));
+    await pyodide.runPythonAsync(PY_WRAPPER + '\n' + driver);
+    appendOutput('\n✓ Program finished.\n', 'ok');
+  } catch (err) {
+    const msg = (err && err.message) ? err.message : String(err);
+    const cleaned = msg.replace(/^Traceback \(most recent call last\):\n(  File "<exec>",[^\n]*\n[^\n]*\n)+/, 'Traceback (most recent call last):\n');
+    appendOutput('\n' + cleaned + '\n', 'stderr');
+  } finally {
+    if (cancelInput) cancelInput();
+    running = false;
+    runBtn.disabled = false;
+    runBtn.textContent = '▶ Run';
+  }
+}
+
+document.getElementById('run-btn').onclick = runCode;
+
+window.addEventListener('beforeunload', () => {
+  if (initialized && activeId !== HOME_ID) save(activeId, editor.getValue());
+});
+
+initPyodide().catch(err => {
+  pyStatusEl.textContent = '✗ Python failed to load';
+  pyStatusEl.style.color = 'var(--red)';
+  appendOutput('Failed to load Pyodide: ' + err.message + '\n', 'stderr');
+  document.getElementById('loading').classList.add('hidden');
+});
+</script>
+</body>
+</html>
