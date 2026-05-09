@@ -1,14 +1,19 @@
 while True:
+    #introduce the program
     print("Welcome to the Fahrenheit to Celsius converter!")
+
+    #Get the user's choice of conversion and the temperature to convert.
     f_or_c = input("Enter F or C for Fahrenheit or Celsius to start: ")
-    if f_or_c == "F":
+
+    #Switch the conversion based on the user's choice and print the result.
+    if f_or_c.capitalize() == "F":
         f = input("Enter the temperature in F: ")
         f = "".join([char for char in f if char.isdigit()])
         f = f.strip()
         f = float(f)
         c = (f - 32) * 5 / 9
         print(f"{f} Fahrenheit is {c:.2f} degrees Celsius to 2 decimal points.")
-    elif f_or_c == "C":
+    elif f_or_c.capitalize() == "C":
         c = input("Enter the temperature in C: ")
         c = "".join([char for char in c if char.isdigit()])
         c = c.strip()
