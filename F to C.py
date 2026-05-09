@@ -1,5 +1,6 @@
 while True:
-    f_or_c = input("Enter F or C: ")
+    print("Welcome to the Fahrenheit to Celsius converter!")
+    f_or_c = input("Enter F or C for Fahrenheit or Celsius to start: ")
     if f_or_c == "F":
         f = input("Enter the temperature in F: ")
         f = "".join([char for char in f if char.isdigit()])

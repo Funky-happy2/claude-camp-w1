@@ -1,4 +1,6 @@
 while True:
+    #Introduce the program
+    print("Welcome to the Password Generator!")
     #Import the random module to generate a random password.
     import random
 

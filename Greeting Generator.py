@@ -1,4 +1,6 @@
 while True:
+    #Introduce the program
+    print("Welcome to the Greeting Generator!")
     #Import the random module to generate a random greeting.
     import random
 

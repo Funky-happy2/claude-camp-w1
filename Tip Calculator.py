@@ -1,4 +1,6 @@
 while True:
+    #Introduce the program
+    print("Welcome to the Tip Calculator!") 
 
     #Find the meal cost and tip percentage from the user.
     meal_cost = input("Enter the meal cost: ")

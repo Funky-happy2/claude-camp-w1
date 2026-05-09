@@ -1,4 +1,6 @@
 while True: 
+    #Introduce the program
+    print("Welcome to the BMI Calculator!")
    #Find the height and weight of user.
     height = (input("Enter your height in cm: "))
     weight = (input("Enter your weight in kg: "))
